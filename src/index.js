@@ -9,7 +9,14 @@ app.use(express.json());
 
 // DB connect
 connectDB();
+ 
+const { connectRedis } = require("./config/redis");
 
+connectRedis();
+
+const rateLimiter = require("./middleware/rateLimiter");
+
+app.use(rateLimiter);
 // Routes
 const urlRoutes = require("./routes/urlRoutes");
 app.use("/", urlRoutes);

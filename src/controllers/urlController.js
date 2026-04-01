@@ -23,11 +23,23 @@ const shortenUrl = async (req, res) => {
   }
 };
 const { pool } = require("../config/db");
+const { client } = require("../config/redis");
 
 const redirectUrl = async (req, res) => {
   try {
     const { shortCode } = req.params;
 
+    // 🔥 Step 1: Check Redis
+    const cachedUrl = await client.get(shortCode);
+
+    if (cachedUrl) {
+      console.log("Cache HIT");
+      return res.redirect(cachedUrl);
+    }
+
+    console.log("Cache MISS");
+
+    // 🔥 Step 2: DB lookup
     const result = await pool.query(
       "SELECT original_url, expires_at FROM urls WHERE short_code = $1",
       [shortCode],
@@ -39,10 +51,15 @@ const redirectUrl = async (req, res) => {
 
     const { original_url, expires_at } = result.rows[0];
 
-    // 🔥 Check expiry
+    // ✅ 🔥 FIX GOES HERE (VERY IMPORTANT)
     if (expires_at && new Date() > new Date(expires_at)) {
       return res.status(410).send("Link expired");
     }
+
+    // ✅ Only cache valid links
+    await client.set(shortCode, original_url, {
+      EX: 3600,
+    });
 
     return res.redirect(original_url);
   } catch (err) {
