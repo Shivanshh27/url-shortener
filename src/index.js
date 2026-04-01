@@ -10,6 +10,10 @@ app.use(express.json());
 // DB connect
 connectDB();
 
+// Routes
+const urlRoutes = require("./routes/urlRoutes");
+app.use("/", urlRoutes);
+
 // Test route
 app.get("/", (req, res) => {
   res.send("API is running...");
