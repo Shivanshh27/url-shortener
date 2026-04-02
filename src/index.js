@@ -20,7 +20,9 @@ app.use(express.json());
 connectDB();
 
 const { connectRedis } = require("./config/redis");
-connectRedis();
+if (process.env.NODE_ENV !== "production") {
+  connectRedis();
+}
 
 const rateLimiter = require("./middleware/rateLimiter");
 app.use(rateLimiter);
