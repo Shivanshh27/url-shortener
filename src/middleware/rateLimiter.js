@@ -6,6 +6,7 @@ const rateLimiter = async (req, res, next) => {
 
     const key = `rate:${ip}`;
 
+    if (!client) return next(); // skip if Redis not available
     const requests = await client.get(key);
 
     if (requests && requests >= 100) {

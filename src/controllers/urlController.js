@@ -29,16 +29,19 @@ const redirectUrl = async (req, res) => {
     const { shortCode } = req.params;
 
     // 🔥 Check Redis
-    const cachedUrl = await client.get(shortCode);
+    let cachedUrl = null;
+
+    if (client) {
+      cachedUrl = await client.get(shortCode);
+    }
 
     if (cachedUrl) {
       console.log("Cache HIT");
 
       // ✅ LOG CLICK EVEN ON CACHE HIT
-      await pool.query(
-        "INSERT INTO clicks (short_code) VALUES ($1)",
-        [shortCode]
-      );
+      await pool.query("INSERT INTO clicks (short_code) VALUES ($1)", [
+        shortCode,
+      ]);
 
       return res.redirect(cachedUrl);
     }
@@ -47,7 +50,7 @@ const redirectUrl = async (req, res) => {
 
     const result = await pool.query(
       "SELECT original_url, expires_at FROM urls WHERE short_code = $1",
-      [shortCode]
+      [shortCode],
     );
 
     if (result.rows.length === 0) {
@@ -61,15 +64,14 @@ const redirectUrl = async (req, res) => {
     }
 
     // ✅ LOG CLICK
-    await pool.query(
-      "INSERT INTO clicks (short_code) VALUES ($1)",
-      [shortCode]
-    );
+    await pool.query("INSERT INTO clicks (short_code) VALUES ($1)", [
+      shortCode,
+    ]);
 
     // Cache it
-    await client.set(shortCode, original_url, {
-      EX: 3600,
-    });
+    if (client) {
+      await client.set(shortCode, original_url, { EX: 3600 });
+    }
 
     return res.redirect(original_url);
   } catch (err) {
@@ -128,7 +130,9 @@ const deleteUrl = async (req, res) => {
     await pool.query("DELETE FROM urls WHERE short_code = $1", [shortCode]);
 
     // 🔥 Remove from Redis cache
-    await client.del(shortCode);
+    if (client) {
+      await client.del(shortCode);
+    }
 
     res.json({ message: "Deleted successfully" });
   } catch (err) {
@@ -136,4 +140,10 @@ const deleteUrl = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-module.exports = { shortenUrl, redirectUrl, getAnalytics, getAllUrls, deleteUrl };
+module.exports = {
+  shortenUrl,
+  redirectUrl,
+  getAnalytics,
+  getAllUrls,
+  deleteUrl,
+};
