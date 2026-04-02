@@ -5,7 +5,7 @@ function App() {
   const [shortUrl, setShortUrl] = useState("");
   const [analytics, setAnalytics] = useState(null);
   const [urls, setUrls] = useState([]);
-
+  const [customAlias, setCustomAlias] = useState("");
   // 🔥 Fetch all URLs
   const fetchUrls = async () => {
     const res = await fetch("http://localhost:5000/urls");
@@ -24,13 +24,25 @@ function App() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({
+        url,
+        customAlias: customAlias || undefined,
+      }),
     });
 
     const data = await res.json();
+
+    if (data.error) {
+      alert(data.error); // show duplicate alias error
+      return;
+    }
+
     setShortUrl(data.shortUrl);
 
-    fetchUrls(); // refresh list
+    // reset input
+    setCustomAlias("");
+
+    fetchUrls();
   };
 
   // 📊 Analytics
@@ -70,6 +82,12 @@ function App() {
         placeholder="Enter URL"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Custom alias (optional)"
+        value={customAlias}
+        onChange={(e) => setCustomAlias(e.target.value)}
       />
 
       <button onClick={handleShorten}>Shorten</button>
