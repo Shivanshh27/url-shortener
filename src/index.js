@@ -5,27 +5,25 @@ const cors = require("cors"); // ✅ ADD THIS
 
 dotenv.config();
 
-const app = express();
+const cors = require("cors");
 
-const allowedOrigins = [
-  "http://localhost:5173", // local frontend
-  process.env.FRONTEND_URL, // production frontend
-];
+const allowedOrigins = ["http://localhost:5173", process.env.FRONTEND_URL];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (like Postman)
+      // allow requests like Postman (no origin)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
+        console.log("Blocked by CORS:", origin);
         return callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ["GET", "POST", "DELETE"],
-    credentials: true,
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
   }),
 );
 
