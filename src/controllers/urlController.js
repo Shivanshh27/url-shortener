@@ -13,7 +13,7 @@ const shortenUrl = async (req, res) => {
     const shortCode = await createShortUrl(url, customAlias, expiresAt);
 
     res.json({
-      shortUrl: `http://localhost:5000/${shortCode}`,
+      shortUrl: `${process.env.BASE_URL}/${shortCode}`,
     });
   } catch (err) {
     if (err.message === "Custom alias already taken") {

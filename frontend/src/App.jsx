@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 
 function App() {
+  const API = import.meta.env.VITE_API_URL;
+
   const [url, setUrl] = useState("");
   const [shortUrl, setShortUrl] = useState("");
   const [analytics, setAnalytics] = useState(null);
@@ -9,9 +11,13 @@ function App() {
 
   // 🔥 Fetch all URLs
   const fetchUrls = async () => {
-    const res = await fetch("http://localhost:5000/urls");
-    const data = await res.json();
-    setUrls(data);
+    try {
+      const res = await fetch(`${API}/urls`);
+      const data = await res.json();
+      setUrls(data);
+    } catch (err) {
+      console.error("Error fetching URLs:", err);
+    }
   };
 
   useEffect(() => {
@@ -20,51 +26,63 @@ function App() {
 
   // 🔗 Shorten URL
   const handleShorten = async () => {
-    const res = await fetch("http://localhost:5000/shorten", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-        customAlias: customAlias || undefined,
-      }),
-    });
+    try {
+      const res = await fetch(`${API}/shorten`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url,
+          customAlias: customAlias || undefined,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.error) {
-      alert(data.error);
-      return;
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      setShortUrl(data.shortUrl);
+      setCustomAlias("");
+      fetchUrls();
+    } catch (err) {
+      console.error("Error shortening URL:", err);
     }
-
-    setShortUrl(data.shortUrl);
-    setCustomAlias("");
-    fetchUrls();
   };
 
   // 📊 Analytics
   const getAnalyticsFromCode = async (code) => {
-    const res = await fetch(`http://localhost:5000/analytics/${code}`);
-    const data = await res.json();
-    setAnalytics(data);
+    try {
+      const res = await fetch(`${API}/analytics/${code}`);
+      const data = await res.json();
+      setAnalytics(data);
+    } catch (err) {
+      console.error("Error fetching analytics:", err);
+    }
   };
 
   // ❌ Delete URL
   const deleteUrl = async (code) => {
     if (!window.confirm("Delete this link?")) return;
 
-    await fetch(`http://localhost:5000/delete/${code}`, {
-      method: "DELETE",
-    });
+    try {
+      await fetch(`${API}/delete/${code}`, {
+        method: "DELETE",
+      });
 
-    fetchUrls();
-    setAnalytics(null);
+      fetchUrls();
+      setAnalytics(null);
+    } catch (err) {
+      console.error("Error deleting URL:", err);
+    }
   };
 
   // 📋 Copy link
   const copyToClipboard = (code) => {
-    const fullUrl = `http://localhost:5000/${code}`;
+    const fullUrl = `${API}/${code}`;
     navigator.clipboard.writeText(fullUrl);
     alert("Copied to clipboard!");
   };
@@ -202,12 +220,12 @@ function App() {
 
                   <td style={tdStyle}>
                     <a
-                      href={`http://localhost:5000/${item.short_code}`}
+                      href={`${API}/${item.short_code}`}
                       target="_blank"
                       rel="noreferrer"
                       style={{ color: "#38bdf8" }}
                     >
-                      {`http://localhost:5000/${item.short_code}`}
+                      {`${API}/${item.short_code}`}
                     </a>
                   </td>
 
