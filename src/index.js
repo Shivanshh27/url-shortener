@@ -6,27 +6,26 @@ const cors = require("cors"); // ✅ ADD THIS
 dotenv.config();
 
 const cors = require("cors");
-const allowedOrigins = ["http://localhost:5173"];
-
-if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
-}
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests like Postman (no origin)
+      // allow Postman / server-to-server
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      const allowed = [
+        "http://localhost:5173",
+        "https://url-shortener-theta-ecru.vercel.app",
+      ];
+
+      if (allowed.includes(origin)) {
         return callback(null, true);
-      } else {
-        console.log("Blocked by CORS:", origin);
-        return callback(new Error("Not allowed by CORS"));
       }
+
+      console.log("Blocked by CORS:", origin);
+      return callback(null, false); // ❗ IMPORTANT: don't throw error
     },
     methods: ["GET", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
   }),
 );
 
