@@ -1,4 +1,6 @@
 const { createShortUrl } = require("../services/urlService");
+const { pool } = require("../config/db");
+const { client } = require("../config/redis");
 
 const shortenUrl = async (req, res) => {
   try {
@@ -22,27 +24,30 @@ const shortenUrl = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-const { pool } = require("../config/db");
-const { client } = require("../config/redis");
-
 const redirectUrl = async (req, res) => {
   try {
     const { shortCode } = req.params;
 
-    // 🔥 Step 1: Check Redis
+    // 🔥 Check Redis
     const cachedUrl = await client.get(shortCode);
 
     if (cachedUrl) {
       console.log("Cache HIT");
+
+      // ✅ LOG CLICK EVEN ON CACHE HIT
+      await pool.query(
+        "INSERT INTO clicks (short_code) VALUES ($1)",
+        [shortCode]
+      );
+
       return res.redirect(cachedUrl);
     }
 
     console.log("Cache MISS");
 
-    // 🔥 Step 2: DB lookup
     const result = await pool.query(
       "SELECT original_url, expires_at FROM urls WHERE short_code = $1",
-      [shortCode],
+      [shortCode]
     );
 
     if (result.rows.length === 0) {
@@ -51,12 +56,17 @@ const redirectUrl = async (req, res) => {
 
     const { original_url, expires_at } = result.rows[0];
 
-    // ✅ 🔥 FIX GOES HERE (VERY IMPORTANT)
     if (expires_at && new Date() > new Date(expires_at)) {
       return res.status(410).send("Link expired");
     }
 
-    // ✅ Only cache valid links
+    // ✅ LOG CLICK
+    await pool.query(
+      "INSERT INTO clicks (short_code) VALUES ($1)",
+      [shortCode]
+    );
+
+    // Cache it
     await client.set(shortCode, original_url, {
       EX: 3600,
     });
@@ -67,4 +77,63 @@ const redirectUrl = async (req, res) => {
     res.status(500).send("Server error");
   }
 };
-module.exports = { shortenUrl, redirectUrl };
+const getAnalytics = async (req, res) => {
+  try {
+    const { shortCode } = req.params;
+
+    const result = await pool.query(
+      "SELECT COUNT(*) AS total_clicks FROM clicks WHERE short_code = $1",
+      [shortCode],
+    );
+
+    res.json({
+      shortCode,
+      totalClicks: result.rows[0].total_clicks,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+const getAllUrls = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT short_code, original_url FROM urls ORDER BY id DESC",
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+const deleteUrl = async (req, res) => {
+  try {
+    const { shortCode } = req.params;
+
+    // ❌ Check if exists
+    const existing = await pool.query(
+      "SELECT * FROM urls WHERE short_code = $1",
+      [shortCode],
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "URL not found" });
+    }
+
+    // 🔥 Delete clicks first (important)
+    await pool.query("DELETE FROM clicks WHERE short_code = $1", [shortCode]);
+
+    // 🔥 Delete URL
+    await pool.query("DELETE FROM urls WHERE short_code = $1", [shortCode]);
+
+    // 🔥 Remove from Redis cache
+    await client.del(shortCode);
+
+    res.json({ message: "Deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+module.exports = { shortenUrl, redirectUrl, getAnalytics, getAllUrls, deleteUrl };

@@ -1,22 +1,30 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const cors = require("cors"); // ✅ ADD THIS
 
 dotenv.config();
 
 const app = express();
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  }),
+);
+
 app.use(express.json());
 
 // DB connect
 connectDB();
- 
-const { connectRedis } = require("./config/redis");
 
+const { connectRedis } = require("./config/redis");
 connectRedis();
 
 const rateLimiter = require("./middleware/rateLimiter");
-
 app.use(rateLimiter);
+
 // Routes
 const urlRoutes = require("./routes/urlRoutes");
 app.use("/", urlRoutes);
