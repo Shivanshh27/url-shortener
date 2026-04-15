@@ -17,6 +17,7 @@ app.use(
       const allowed = [
         "http://localhost:5173",
         "https://url-shortener-theta-ecru.vercel.app",
+        "https://urlshortener.shivansh.online",
       ];
 
       if (allowed.includes(origin)) {
