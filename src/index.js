@@ -5,31 +5,33 @@ const connectDB = require("./config/db");
 
 dotenv.config();
 
-// ✅ CREATE APP FIRST
 const app = express();
 
-// ✅ CORS
+// ✅ CORS (robust version)
 app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
 
-      const allowed = [
-        "http://localhost:5173",
-        "https://url-shortener-theta-ecru.vercel.app",
-        "https://urlshortener.shivansh.online",
-      ];
-
-      if (allowed.includes(origin)) {
+      // ✅ Allow all your environments
+      if (
+        origin.includes("localhost") ||
+        origin.includes("vercel.app") ||
+        origin.includes("shivansh.online")
+      ) {
         return callback(null, true);
       }
 
       console.log("Blocked by CORS:", origin);
-      return callback(null, false);
+      return callback(new Error("Not allowed by CORS"));
     },
     methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    credentials: true,
   }),
 );
+
+// ✅ Handle preflight requests
+app.options("*", cors());
 
 // ✅ Middleware
 app.use(express.json());
