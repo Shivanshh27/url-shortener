@@ -41,10 +41,26 @@ function App() {
     fetchUrls();
   }, []);
 
+  // Helper to get minimum date-time for validation (preventing past date selection)
+  const getMinDateTime = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  };
+
   // 🔗 Shorten URL
   const handleShorten = async () => {
     if (!url) {
       addToast("Please enter a URL first", "error");
+      return;
+    }
+
+    if (expiresAt && new Date(expiresAt) <= new Date()) {
+      addToast("Expiration date must be in the future", "error");
       return;
     }
 
@@ -86,14 +102,14 @@ function App() {
   // Helper to calculate expiration status
   const getExpirationStatus = (expiresAtString) => {
     if (
-      !expiresAtString || 
-      expiresAtString === "null" || 
-      expiresAtString === "undefined" || 
+      !expiresAtString ||
+      expiresAtString === "null" ||
+      expiresAtString === "undefined" ||
       expiresAtString === ""
     ) {
       return { label: "Permanent", className: "badge-permanent" };
     }
-    
+
     const expiry = new Date(expiresAtString);
     if (isNaN(expiry.getTime())) {
       return { label: "Permanent", className: "badge-permanent" };
@@ -137,7 +153,7 @@ function App() {
 
       addToast("URL deleted successfully!", "success");
       fetchUrls();
-      
+
       // If we deleted the URL that is currently in the analytics view, clear it
       if (analytics && analytics.shortCode === code) {
         setAnalytics(null);
@@ -172,7 +188,7 @@ function App() {
         addToast(data.error, "error");
         return;
       }
-      
+
       addToast(data.message, "success");
       setUrls((prev) =>
         prev.map((item) =>
@@ -194,7 +210,7 @@ function App() {
   const downloadQRCode = (code) => {
     const fullUrl = `${API}/${code}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(fullUrl)}`;
-    
+
     addToast("Generating QR download...", "info");
     fetch(qrUrl)
       .then((res) => res.blob())
@@ -245,38 +261,66 @@ function App() {
               />
             </div>
 
-            <div className="input-wrapper">
-              <input
-                type="text"
-                placeholder="Custom alias (optional, e.g. custom-name)"
-                value={customAlias}
-                onChange={(e) => setCustomAlias(e.target.value)}
-                className="input-field"
-              />
-            </div>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", width: "100%" }}>
+              <div className="input-wrapper" style={{ flex: "1 1 240px", textAlign: "left" }}>
+                <label 
+                  style={{ 
+                    display: "block", 
+                    fontSize: "0.85rem", 
+                    color: "var(--text-secondary)", 
+                    marginBottom: "6px",
+                    fontWeight: "500"
+                  }}
+                >
+                  Custom Alias (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. custom-name"
+                  value={customAlias}
+                  onChange={(e) => setCustomAlias(e.target.value)}
+                  className="input-field"
+                />
+              </div>
 
-            <div className="input-wrapper" style={{ textAlign: "left" }}>
-              <label 
-                style={{ 
-                  display: "block", 
-                  fontSize: "0.85rem", 
-                  color: "var(--text-secondary)", 
-                  marginBottom: "6px",
-                  fontWeight: "500"
-                }}
-              >
-                Expiration Date & Time (Optional)
-              </label>
-              <input
-                type={isDateFocused || expiresAt ? "datetime-local" : "text"}
-                placeholder="Set expiration date (optional)"
-                value={expiresAt}
-                onFocus={() => setIsDateFocused(true)}
-                onBlur={() => setIsDateFocused(false)}
-                onChange={(e) => setExpiresAt(e.target.value)}
-                className="input-field"
-                style={{ colorScheme: "dark" }}
-              />
+              <div className="input-wrapper" style={{ flex: "1 1 240px", textAlign: "left", position: "relative" }}>
+                <label 
+                  style={{ 
+                    display: "block", 
+                    fontSize: "0.85rem", 
+                    color: "var(--text-secondary)", 
+                    marginBottom: "6px",
+                    fontWeight: "500"
+                  }}
+                >
+                  Expiration Date & Time (Optional)
+                </label>
+                <input
+                  type={isDateFocused || expiresAt ? "datetime-local" : "text"}
+                  placeholder="Set expiration date"
+                  value={expiresAt}
+                  onFocus={() => setIsDateFocused(true)}
+                  onBlur={() => setIsDateFocused(false)}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="input-field"
+                  style={{ colorScheme: "dark", paddingRight: "40px" }}
+                  min={getMinDateTime()}
+                />
+                {!(isDateFocused || expiresAt) && (
+                  <span 
+                    style={{ 
+                      position: "absolute", 
+                      right: "16px", 
+                      bottom: "14px",
+                      color: "var(--text-secondary)", 
+                      pointerEvents: "none",
+                      fontSize: "1.05rem"
+                    }}
+                  >
+                    📅
+                  </span>
+                )}
+              </div>
             </div>
 
             <button onClick={handleShorten} className="btn btn-primary" disabled={loading}>
@@ -305,7 +349,7 @@ function App() {
                     {shortUrl}
                   </a>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     navigator.clipboard.writeText(shortUrl);
                     addToast("Copied short link!", "success");
@@ -325,12 +369,12 @@ function App() {
           <section className="glass-card" style={{ animation: "fadeIn 0.5s ease-out" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h2>📊 Analytics Dashboard</h2>
-              <button 
-                onClick={() => setAnalytics(null)} 
-                className="btn-action" 
-                style={{ 
-                  background: "rgba(255,255,255,0.05)", 
-                  color: "var(--text-secondary)", 
+              <button
+                onClick={() => setAnalytics(null)}
+                className="btn-action"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  color: "var(--text-secondary)",
                   border: "1px solid rgba(255,255,255,0.1)",
                   padding: "6px 12px",
                   borderRadius: "8px",
@@ -342,7 +386,7 @@ function App() {
                 ✕ Close Panel
               </button>
             </div>
-            
+
             <div className="analytics-grid">
               <div className="stat-card">
                 <div className="stat-label">Short Code</div>
@@ -357,17 +401,17 @@ function App() {
               <div className="stat-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", padding: "20px" }}>
                 <div className="stat-label" style={{ marginBottom: "2px" }}>QR Code</div>
                 <div style={{ background: "#ffffff", padding: "6px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${API}/${analytics.shortCode}`)}`} 
-                    alt="QR Code" 
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${API}/${analytics.shortCode}`)}`}
+                    alt="QR Code"
                     style={{ width: "60px", height: "60px", display: "block" }}
                   />
                 </div>
-                <button 
-                  onClick={() => downloadQRCode(analytics.shortCode)} 
-                  className="btn-action" 
-                  style={{ 
-                    padding: "4px 10px", 
+                <button
+                  onClick={() => downloadQRCode(analytics.shortCode)}
+                  className="btn-action"
+                  style={{
+                    padding: "4px 10px",
                     fontSize: "0.75rem",
                     background: "rgba(99, 102, 241, 0.12)",
                     border: "1px solid rgba(99, 102, 241, 0.25)",
@@ -424,7 +468,7 @@ function App() {
 
                 <tbody>
                   {(() => {
-                    const filtered = urls.filter(item => 
+                    const filtered = urls.filter(item =>
                       item.original_url.toLowerCase().includes(searchQuery.toLowerCase()) ||
                       item.short_code.toLowerCase().includes(searchQuery.toLowerCase())
                     );
@@ -440,89 +484,89 @@ function App() {
                     return filtered.map((item) => {
                       const status = getExpirationStatus(item.expires_at);
                       return (
-                      <tr key={item.short_code}>
-                        <td data-label="Code">
-                          <span className="code-badge">{item.short_code}</span>
-                        </td>
+                        <tr key={item.short_code}>
+                          <td data-label="Code">
+                            <span className="code-badge">{item.short_code}</span>
+                          </td>
 
-                        <td data-label="Short URL">
-                          <a
-                            href={`${API}/${item.short_code}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="url-link"
-                          >
-                            {`${API}/${item.short_code}`}
-                          </a>
-                        </td>
-
-                        <td data-label="Original Destination">
-                          <a 
-                            href={item.original_url} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="url-truncated" 
-                            title={item.original_url}
-                            style={{ textDecoration: "none" }}
-                          >
-                            {item.original_url}
-                          </a>
-                        </td>
-
-                        <td data-label="Status">
-                          <span className={`badge ${status.className}`}>
-                            {status.label}
-                          </span>
-                          {status.formattedDate && (
-                            <span 
-                              className="expires-text" 
-                              title={`Expires on ${status.fullString}`}
+                          <td data-label="Short URL">
+                            <a
+                              href={`${API}/${item.short_code}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="url-link"
                             >
-                              {status.formattedDate} {status.formattedTime}
+                              {`${API}/${item.short_code}`}
+                            </a>
+                          </td>
+
+                          <td data-label="Original Destination">
+                            <a
+                              href={item.original_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="url-truncated"
+                              title={item.original_url}
+                              style={{ textDecoration: "none" }}
+                            >
+                              {item.original_url}
+                            </a>
+                          </td>
+
+                          <td data-label="Status">
+                            <span className={`badge ${status.className}`}>
+                              {status.label}
                             </span>
-                          )}
-                        </td>
+                            {status.formattedDate && (
+                              <span
+                                className="expires-text"
+                                title={`Expires on ${status.fullString}`}
+                              >
+                                {status.formattedDate} {status.formattedTime}
+                              </span>
+                            )}
+                          </td>
 
-                        <td data-label="Active">
-                          <label className="toggle-switch">
-                            <input 
-                              type="checkbox" 
-                              checked={item.is_active !== false}
-                              onChange={() => handleToggleActive(item.short_code)}
-                            />
-                            <span className="toggle-slider"></span>
-                          </label>
-                        </td>
+                          <td data-label="Active">
+                            <label className="toggle-switch">
+                              <input
+                                type="checkbox"
+                                checked={item.is_active !== false}
+                                onChange={() => handleToggleActive(item.short_code)}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                          </td>
 
-                        <td data-label="Actions" style={{ textAlign: "right" }}>
-                          <div className="action-group">
-                            <button
-                              onClick={() => getAnalyticsFromCode(item.short_code)}
-                              className="btn-action btn-analytics"
-                            >
-                              Analytics
-                            </button>
+                          <td data-label="Actions" style={{ textAlign: "right" }}>
+                            <div className="action-group">
+                              <button
+                                onClick={() => getAnalyticsFromCode(item.short_code)}
+                                className="btn-action btn-analytics"
+                              >
+                                Analytics
+                              </button>
 
-                            <button
-                              onClick={() => copyToClipboard(item.short_code)}
-                              className="btn-action btn-copy"
-                            >
-                              Copy
-                            </button>
+                              <button
+                                onClick={() => copyToClipboard(item.short_code)}
+                                className="btn-action btn-copy"
+                              >
+                                Copy
+                              </button>
 
-                            <button
-                              onClick={() => deleteUrl(item.short_code)}
-                              className="btn-action btn-delete"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  });
-                })()}
-              </tbody>
+                              <button
+                                onClick={() => deleteUrl(item.short_code)}
+                                className="btn-action btn-delete"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
               </table>
             </div>
           )}

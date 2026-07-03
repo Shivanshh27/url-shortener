@@ -11,6 +11,10 @@ const shortenUrl = async (req, res) => {
       return res.status(400).json({ error: "URL required" });
     }
 
+    if (expiresAt && new Date(expiresAt) <= new Date()) {
+      return res.status(400).json({ error: "Expiration date must be in the future" });
+    }
+
     const shortCode = await createShortUrl(url, customAlias, expiresAt);
 
     res.json({
