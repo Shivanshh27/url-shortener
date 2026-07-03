@@ -8,15 +8,29 @@ function App() {
   const [analytics, setAnalytics] = useState(null);
   const [urls, setUrls] = useState([]);
   const [customAlias, setCustomAlias] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toasts, setToasts] = useState([]);
+
+  // Helper to trigger custom Toast notifications
+  const addToast = (message, type = "success") => {
+    const id = Date.now() + Math.random().toString(36).substr(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  };
 
   // 🔥 Fetch all URLs
   const fetchUrls = async () => {
     try {
       const res = await fetch(`${API}/urls`);
+      if (!res.ok) throw new Error("Failed to fetch URLs");
       const data = await res.json();
       setUrls(data);
     } catch (err) {
       console.error("Error fetching URLs:", err);
+      addToast("Failed to fetch URLs from the server", "error");
     }
   };
 
@@ -26,6 +40,12 @@ function App() {
 
   // 🔗 Shorten URL
   const handleShorten = async () => {
+    if (!url) {
+      addToast("Please enter a URL first", "error");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${API}/shorten`, {
         method: "POST",
@@ -35,250 +55,355 @@ function App() {
         body: JSON.stringify({
           url,
           customAlias: customAlias || undefined,
+          expiresAt: expiresAt || undefined,
         }),
       });
 
       const data = await res.json();
 
       if (data.error) {
-        alert(data.error);
+        addToast(data.error, "error");
         return;
       }
 
       setShortUrl(data.shortUrl);
+      setUrl("");
       setCustomAlias("");
+      setExpiresAt("");
+      addToast("Short link generated successfully!", "success");
       fetchUrls();
     } catch (err) {
       console.error("Error shortening URL:", err);
+      addToast("Something went wrong. Please try again.", "error");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Helper to calculate expiration status
+  const getExpirationStatus = (expiresAtString) => {
+    if (!expiresAtString) {
+      return { label: "Permanent", className: "badge-permanent" };
+    }
+    const expiry = new Date(expiresAtString);
+    const expired = new Date() > expiry;
+    return {
+      label: expired ? "Expired" : "Active",
+      className: expired ? "badge-expired" : "badge-active",
+      formattedDate: expiry.toLocaleDateString(),
+      formattedTime: expiry.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      fullString: expiry.toLocaleString()
+    };
   };
 
   // 📊 Analytics
   const getAnalyticsFromCode = async (code) => {
     try {
       const res = await fetch(`${API}/analytics/${code}`);
+      if (!res.ok) throw new Error("Failed to get analytics");
       const data = await res.json();
       setAnalytics(data);
+      addToast(`Analytics loaded for code: ${code}`, "info");
     } catch (err) {
       console.error("Error fetching analytics:", err);
+      addToast("Failed to fetch analytics", "error");
     }
   };
 
   // ❌ Delete URL
   const deleteUrl = async (code) => {
-    if (!window.confirm("Delete this link?")) return;
+    if (!window.confirm(`Are you sure you want to delete /${code}?`)) return;
 
     try {
-      await fetch(`${API}/delete/${code}`, {
+      const res = await fetch(`${API}/delete/${code}`, {
         method: "DELETE",
       });
 
+      if (!res.ok) throw new Error("Deletion failed");
+
+      addToast("URL deleted successfully!", "success");
       fetchUrls();
-      setAnalytics(null);
+      
+      // If we deleted the URL that is currently in the analytics view, clear it
+      if (analytics && analytics.shortCode === code) {
+        setAnalytics(null);
+      }
     } catch (err) {
       console.error("Error deleting URL:", err);
+      addToast("Failed to delete URL", "error");
     }
   };
 
   // 📋 Copy link
   const copyToClipboard = (code) => {
     const fullUrl = `${API}/${code}`;
-    navigator.clipboard.writeText(fullUrl);
-    alert("Copied to clipboard!");
-  };
-
-  // 🎨 Styles
-  const inputStyle = {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "10px",
-    borderRadius: "8px",
-    border: "1px solid #475569",
-    background: "#0f172a",
-    color: "white",
-  };
-
-  const primaryButton = {
-    width: "100%",
-    padding: "10px",
-    background: "#22c55e",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  };
-
-  const actionButton = (color) => ({
-    background: color,
-    color: "white",
-    border: "none",
-    padding: "6px 10px",
-    margin: "4px",
-    borderRadius: "6px",
-    cursor: "pointer",
-  });
-
-  const thStyle = {
-    padding: "12px",
-    color: "#cbd5f5",
-  };
-
-  const tdStyle = {
-    padding: "10px",
-    borderTop: "1px solid #334155",
+    navigator.clipboard.writeText(fullUrl)
+      .then(() => {
+        addToast("Copied to clipboard!", "success");
+      })
+      .catch((err) => {
+        console.error("Clipboard copy failed:", err);
+        addToast("Failed to copy link", "error");
+      });
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0f172a",
-        color: "#e2e8f0",
-        padding: "30px",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1 style={{ textAlign: "center", marginBottom: "30px" }}>
-        🔗 URL Shortener Dashboard
-      </h1>
+    <>
+      {/* Glow background blobs */}
+      <div className="glow-bg">
+        <div className="glow-blob glow-blob-1"></div>
+        <div className="glow-blob glow-blob-2"></div>
+        <div className="glow-blob glow-blob-3"></div>
+      </div>
 
-      {/* Input Card */}
-      <div
-        style={{
-          background: "#1e293b",
-          padding: "20px",
-          borderRadius: "12px",
-          maxWidth: "600px",
-          margin: "auto",
-          boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Enter URL"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          style={inputStyle}
-        />
+      <div className="app-container">
+        {/* Header */}
+        <header>
+          <h1>🔗 SleekLink</h1>
+          <p className="subtitle">Premium URL Shortener Dashboard</p>
+        </header>
 
-        <input
-          type="text"
-          placeholder="Custom alias (optional)"
-          value={customAlias}
-          onChange={(e) => setCustomAlias(e.target.value)}
-          style={inputStyle}
-        />
+        {/* Input Card */}
+        <section className="glass-card">
+          <h2>Create Short Link</h2>
+          <div className="form-container">
+            <div className="input-wrapper">
+              <input
+                type="text"
+                placeholder="Enter URL to shorten (e.g. github.com/google)"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="input-field"
+              />
+            </div>
 
-        <button onClick={handleShorten} style={primaryButton}>
-          Shorten URL
-        </button>
+            <div className="input-wrapper">
+              <input
+                type="text"
+                placeholder="Custom alias (optional, e.g. custom-name)"
+                value={customAlias}
+                onChange={(e) => setCustomAlias(e.target.value)}
+                className="input-field"
+              />
+            </div>
 
-        {shortUrl && (
-          <p style={{ marginTop: "15px" }}>
-            Latest:{" "}
-            <a
-              href={shortUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "#38bdf8" }}
-            >
-              {shortUrl}
-            </a>
-          </p>
+            <div className="input-wrapper" style={{ textAlign: "left" }}>
+              <label 
+                style={{ 
+                  display: "block", 
+                  fontSize: "0.85rem", 
+                  color: "var(--text-secondary)", 
+                  marginBottom: "6px",
+                  fontWeight: "500"
+                }}
+              >
+                Expiration Date & Time (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className="input-field"
+                style={{ colorScheme: "dark" }}
+              />
+            </div>
+
+            <button onClick={handleShorten} className="btn btn-primary" disabled={loading}>
+              {loading ? (
+                <>
+                  <svg className="spinner" viewBox="0 0 50 50">
+                    <circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="5"></circle>
+                  </svg>
+                  Shortening...
+                </>
+              ) : (
+                "Shorten URL"
+              )}
+            </button>
+
+            {shortUrl && (
+              <div 
+                style={{ 
+                  marginTop: "16px", 
+                  padding: "12px 16px", 
+                  borderRadius: "10px", 
+                  background: "rgba(99, 102, 241, 0.1)", 
+                  border: "1px solid rgba(99, 102, 241, 0.2)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}
+              >
+                <div>
+                  <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>Short URL: </span>
+                  <a
+                    href={shortUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="url-link"
+                  >
+                    {shortUrl}
+                  </a>
+                </div>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(shortUrl);
+                    addToast("Copied short link!", "success");
+                  }}
+                  className="btn-action btn-copy"
+                  style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                >
+                  Copy
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Analytics Details Panel */}
+        {analytics && (
+          <section className="glass-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h2>📊 Real-Time Analytics</h2>
+              <button 
+                onClick={() => setAnalytics(null)} 
+                className="btn-action" 
+                style={{ background: "transparent", color: "var(--text-secondary)", border: "none" }}
+              >
+                ✕ Close
+              </button>
+            </div>
+            
+            <div className="analytics-grid">
+              <div className="stat-card">
+                <div className="stat-label">Short Code</div>
+                <div className="stat-value" style={{ color: "#a5b4fc" }}>{analytics.shortCode}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Total Clicks</div>
+                <div className="stat-value">{analytics.totalClicks}</div>
+              </div>
+            </div>
+          </section>
         )}
+
+        {/* All Links List */}
+        <section className="glass-card">
+          <h2>📋 Shortened Links Registry</h2>
+
+          {urls.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🔗</div>
+              <p>No shortened links found. Create your first link above!</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Short URL</th>
+                    <th>Original Destination</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {urls.map((item) => {
+                    const status = getExpirationStatus(item.expires_at);
+                    return (
+                      <tr key={item.short_code}>
+                        <td data-label="Code">
+                          <span className="code-badge">{item.short_code}</span>
+                        </td>
+
+                        <td data-label="Short URL">
+                          <a
+                            href={`${API}/${item.short_code}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="url-link"
+                          >
+                            {`${API}/${item.short_code}`}
+                          </a>
+                        </td>
+
+                        <td data-label="Original Destination">
+                          <a 
+                            href={item.original_url} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="url-truncated" 
+                            title={item.original_url}
+                            style={{ textDecoration: "none" }}
+                          >
+                            {item.original_url}
+                          </a>
+                        </td>
+
+                        <td data-label="Status">
+                          <span className={`badge ${status.className}`}>
+                            {status.label}
+                          </span>
+                          {status.formattedDate && (
+                            <span 
+                              className="expires-text" 
+                              title={`Expires on ${status.fullString}`}
+                            >
+                              {status.formattedDate} {status.formattedTime}
+                            </span>
+                          )}
+                        </td>
+
+                        <td data-label="Actions" style={{ textAlign: "right" }}>
+                          <div className="action-group">
+                            <button
+                              onClick={() => getAnalyticsFromCode(item.short_code)}
+                              className="btn-action btn-analytics"
+                            >
+                              Analytics
+                            </button>
+
+                            <button
+                              onClick={() => copyToClipboard(item.short_code)}
+                              className="btn-action btn-copy"
+                            >
+                              Copy
+                            </button>
+
+                            <button
+                              onClick={() => deleteUrl(item.short_code)}
+                              className="btn-action btn-delete"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
 
-      {/* Table */}
-      <div style={{ marginTop: "40px" }}>
-        <h2 style={{ textAlign: "center" }}>📋 All Links</h2>
-
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              marginTop: "20px",
-              background: "#1e293b",
-              borderRadius: "10px",
-              overflow: "hidden",
-            }}
-          >
-            <thead style={{ background: "#334155" }}>
-              <tr>
-                <th style={thStyle}>Code</th>
-                <th style={thStyle}>Short URL</th>
-                <th style={thStyle}>Original</th>
-                <th style={thStyle}>Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {urls.map((item) => (
-                <tr key={item.short_code} style={{ textAlign: "center" }}>
-                  <td style={tdStyle}>{item.short_code}</td>
-
-                  <td style={tdStyle}>
-                    <a
-                      href={`${API}/${item.short_code}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "#38bdf8" }}
-                    >
-                      {`${API}/${item.short_code}`}
-                    </a>
-                  </td>
-
-                  <td style={tdStyle}>{item.original_url}</td>
-
-                  <td style={tdStyle}>
-                    <button
-                      onClick={() => getAnalyticsFromCode(item.short_code)}
-                      style={actionButton("#22c55e")}
-                    >
-                      Analytics
-                    </button>
-
-                    <button
-                      onClick={() => deleteUrl(item.short_code)}
-                      style={actionButton("#ef4444")}
-                    >
-                      Delete
-                    </button>
-
-                    <button
-                      onClick={() => copyToClipboard(item.short_code)}
-                      style={actionButton("#3b82f6")}
-                    >
-                      Copy
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Floating Toast Notification Containers */}
+      <div className="toast-container">
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`toast ${toast.type}`}>
+            <span className="toast-icon">
+              {toast.type === "success" && "✓"}
+              {toast.type === "error" && "✗"}
+              {toast.type === "info" && "ℹ"}
+            </span>
+            <span className="toast-message">{toast.message}</span>
+          </div>
+        ))}
       </div>
-
-      {/* Analytics */}
-      {analytics && (
-        <div
-          style={{
-            marginTop: "30px",
-            background: "#1e293b",
-            padding: "20px",
-            borderRadius: "10px",
-            maxWidth: "400px",
-            marginInline: "auto",
-            textAlign: "center",
-          }}
-        >
-          <h3>📊 Analytics</h3>
-          <p>Code: {analytics.shortCode}</p>
-          <p>Total Clicks: {analytics.totalClicks}</p>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
