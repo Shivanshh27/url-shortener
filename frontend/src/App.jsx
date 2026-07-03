@@ -100,7 +100,8 @@ function App() {
   // 📊 Analytics
   const getAnalyticsFromCode = async (code) => {
     try {
-      const res = await fetch(`${API}/analytics/${code}`);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch(`${API}/analytics/${code}?tz=${tz}`);
       if (!res.ok) throw new Error("Failed to get analytics");
       const data = await res.json();
       setAnalytics(data);

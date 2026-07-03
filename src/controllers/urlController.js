@@ -198,6 +198,7 @@ const redirectUrl = async (req, res) => {
 const getAnalytics = async (req, res) => {
   try {
     const { shortCode } = req.params;
+    const tz = req.query.tz || "UTC";
 
     // Check if the URL exists
     const urlCheck = await pool.query(
@@ -239,14 +240,14 @@ const getAnalytics = async (req, res) => {
       [shortCode]
     );
 
-    // 6. Click history timeline (last 7 days)
+    // 6. Click history timeline (last 7 days) shifted by timezone
     const timelineResult = await pool.query(
-      `SELECT TO_CHAR(timestamp, 'YYYY-MM-DD') as click_date, COUNT(*) as count 
+      `SELECT TO_CHAR(timestamp AT TIME ZONE 'UTC' AT TIME ZONE $2, 'YYYY-MM-DD') as click_date, COUNT(*) as count 
        FROM clicks 
        WHERE short_code = $1 AND timestamp > NOW() - INTERVAL '7 days' 
-       GROUP BY TO_CHAR(timestamp, 'YYYY-MM-DD') 
+       GROUP BY TO_CHAR(timestamp AT TIME ZONE 'UTC' AT TIME ZONE $2, 'YYYY-MM-DD') 
        ORDER BY click_date ASC`,
-      [shortCode]
+      [shortCode, tz]
     );
 
     res.json({
