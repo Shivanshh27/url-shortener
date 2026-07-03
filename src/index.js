@@ -27,7 +27,7 @@ app.use(
       console.log("Blocked by CORS:", origin);
       return callback(null, false);
     },
-    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   }),
 );
 
