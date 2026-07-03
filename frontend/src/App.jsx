@@ -391,7 +391,7 @@ function App() {
               <div className="stat-card">
                 <div className="stat-label">Short Code</div>
                 <div className="stat-value" style={{ color: "var(--primary-light)", letterSpacing: "0.5px" }}>
-                  /{analytics.shortCode}
+                  {analytics.shortCode}
                 </div>
               </div>
               <div className="stat-card">
