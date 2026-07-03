@@ -13,6 +13,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDateFocused, setIsDateFocused] = useState(false);
 
   // Helper to trigger custom Toast notifications
   const addToast = (message, type = "success") => {
@@ -84,10 +85,20 @@ function App() {
 
   // Helper to calculate expiration status
   const getExpirationStatus = (expiresAtString) => {
-    if (!expiresAtString) {
+    if (
+      !expiresAtString || 
+      expiresAtString === "null" || 
+      expiresAtString === "undefined" || 
+      expiresAtString === ""
+    ) {
       return { label: "Permanent", className: "badge-permanent" };
     }
+    
     const expiry = new Date(expiresAtString);
+    if (isNaN(expiry.getTime())) {
+      return { label: "Permanent", className: "badge-permanent" };
+    }
+
     const expired = new Date() > expiry;
     return {
       label: expired ? "Expired" : "Active",
@@ -257,8 +268,11 @@ function App() {
                 Expiration Date & Time (Optional)
               </label>
               <input
-                type="datetime-local"
+                type={isDateFocused || expiresAt ? "datetime-local" : "text"}
+                placeholder="Set expiration date (optional)"
                 value={expiresAt}
+                onFocus={() => setIsDateFocused(true)}
+                onBlur={() => setIsDateFocused(false)}
                 onChange={(e) => setExpiresAt(e.target.value)}
                 className="input-field"
                 style={{ colorScheme: "dark" }}
@@ -279,18 +293,7 @@ function App() {
             </button>
 
             {shortUrl && (
-              <div 
-                style={{ 
-                  marginTop: "16px", 
-                  padding: "12px 16px", 
-                  borderRadius: "10px", 
-                  background: "rgba(99, 102, 241, 0.1)", 
-                  border: "1px solid rgba(99, 102, 241, 0.2)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center"
-                }}
-              >
+              <div className="shorten-result-card">
                 <div>
                   <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>Short URL: </span>
                   <a
@@ -351,32 +354,31 @@ function App() {
                 <div className="stat-label">Total Clicks</div>
                 <div className="stat-value" style={{ color: "#34d399" }}>{analytics.totalClicks}</div>
               </div>
-              <div className="stat-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", padding: "16px 20px" }}>
-                <div style={{ textAlign: "left" }}>
-                  <div className="stat-label">QR Code</div>
-                  <button 
-                    onClick={() => downloadQRCode(analytics.shortCode)} 
-                    className="btn-action" 
-                    style={{ 
-                      marginTop: "10px", 
-                      padding: "5px 10px", 
-                      fontSize: "0.75rem",
-                      background: "rgba(99, 102, 241, 0.12)",
-                      border: "1px solid rgba(99, 102, 241, 0.25)",
-                      color: "var(--primary-light)",
-                      borderRadius: "6px"
-                    }}
-                  >
-                    📥 Download
-                  </button>
-                </div>
-                <div style={{ background: "#ffffff", padding: "6px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+              <div className="stat-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", padding: "20px" }}>
+                <div className="stat-label" style={{ marginBottom: "2px" }}>QR Code</div>
+                <div style={{ background: "#ffffff", padding: "6px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }}>
                   <img 
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`${API}/${analytics.shortCode}`)}`} 
                     alt="QR Code" 
-                    style={{ width: "68px", height: "68px", display: "block" }}
+                    style={{ width: "60px", height: "60px", display: "block" }}
                   />
                 </div>
+                <button 
+                  onClick={() => downloadQRCode(analytics.shortCode)} 
+                  className="btn-action" 
+                  style={{ 
+                    padding: "4px 10px", 
+                    fontSize: "0.75rem",
+                    background: "rgba(99, 102, 241, 0.12)",
+                    border: "1px solid rgba(99, 102, 241, 0.25)",
+                    color: "var(--primary-light)",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  📥 Download QR
+                </button>
               </div>
             </div>
 
@@ -389,24 +391,15 @@ function App() {
         <section className="glass-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
             <h2 style={{ marginBottom: 0 }}>📋 Shortened Links Registry</h2>
-            <div style={{ position: "relative", width: "100%", maxWidth: "300px" }}>
+            <div className="search-input-container">
               <input
                 type="text"
                 placeholder="Search links..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input-field"
-                style={{ 
-                  padding: "10px 14px 10px 38px", 
-                  fontSize: "0.9rem",
-                  borderRadius: "10px",
-                  background: "rgba(15, 23, 42, 0.55)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)"
-                }}
+                className="input-field search-input"
               />
-              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: "0.95rem", pointerEvents: "none" }}>
-                🔍
-              </span>
+              <span className="search-icon">🔍</span>
             </div>
           </div>
 

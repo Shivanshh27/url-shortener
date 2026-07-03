@@ -387,11 +387,13 @@ h2 {
 }
 
 .custom-table tbody tr {
-  transition: background-color 0.2s ease;
+  transition: all 0.25s ease;
+  border-left: 3px solid transparent;
 }
 
 .custom-table tbody tr:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(255, 255, 255, 0.025);
+  border-left: 3px solid var(--primary);
 }
 
 .code-badge {
@@ -424,6 +426,37 @@ h2 {
   text-overflow: ellipsis;
   color: var(--text-secondary);
   display: block;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.url-truncated:hover {
+  color: var(--accent-blue);
+  opacity: 0.9;
+}
+
+/* Shorten Result Card Glow & Slide */
+.shorten-result-card {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.12);
+  animation: slideDownFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Action Group */
@@ -826,5 +859,31 @@ h2 {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Search Input Styles */
+.search-input-container {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+}
+
+.search-input {
+  padding-left: 38px !important;
+  font-size: 0.9rem !important;
+  border-radius: 10px !important;
+  background: rgba(15, 23, 42, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  height: 42px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  pointer-events: none;
 }
 
