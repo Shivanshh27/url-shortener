@@ -80,3 +80,8 @@ public/uploads/
 # =========================
 *.tgz
 *.zip
+
+# =========================
+# Interview Preparation
+# =========================
+interview_prep_guide.md
