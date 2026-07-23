@@ -82,6 +82,7 @@ public/uploads/
 *.zip
 
 # =========================
-# Interview Preparation
+# Interview Preparation & Study Notes
 # =========================
 interview_prep_guide.md
+study*
